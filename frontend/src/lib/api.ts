@@ -9,8 +9,8 @@ export async function getIncidents(severity?: string): Promise<Incident[]> {
     const res = await fetch(url.toString(), { cache: "no-store" });
     if (!res.ok) return [];
     return await res.json();
-  } catch (err) {
-    console.error("Failed to fetch incidents", err);
+  } catch {
+    // Graceful fallback when backend is offline
     return [];
   }
 }
@@ -20,8 +20,7 @@ export async function getIncident(id: string): Promise<Incident | null> {
     const res = await fetch(`${API_BASE}/api/v1/incidents/${id}`, { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
-  } catch (err) {
-    console.error(`Failed to fetch incident ${id}`, err);
+  } catch {
     return null;
   }
 }
@@ -37,12 +36,12 @@ export async function createFixBranch(id: string): Promise<{ status: string; bra
   }
 }
 
-export async function getHealth(): Promise<any> {
+export async function getHealth(): Promise<{ status: string; database_type?: string; database?: string; ai_provider?: string } | null> {
   try {
     const res = await fetch(`${API_BASE}/api/v1/health`, { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
-  } catch (err) {
+  } catch {
     return null;
   }
 }
