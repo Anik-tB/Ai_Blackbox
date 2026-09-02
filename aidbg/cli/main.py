@@ -240,7 +240,14 @@ def run(
     # 1. Node.js / JavaScript / TypeScript runtime
     if is_node:
         import aidbg.agent
-        node_agent_path = Path(aidbg.agent.__file__).parent / "node_agent.cjs"
+        agent_file = getattr(aidbg.agent, "__file__", None)
+        if agent_file:
+            node_agent_path = Path(agent_file).parent / "node_agent.cjs"
+        elif hasattr(aidbg.agent, "__path__"):
+            node_agent_path = Path(list(aidbg.agent.__path__)[0]) / "node_agent.cjs"
+        else:
+            node_agent_path = Path(__file__).resolve().parent.parent / "agent" / "node_agent.cjs"
+
         if node_agent_path.exists():
             existing_node_opts = env.get("NODE_OPTIONS", "")
             env["NODE_OPTIONS"] = f"--require {node_agent_path.resolve()} {existing_node_opts}".strip()
