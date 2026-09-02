@@ -10,7 +10,7 @@ redaction:
   - secret
   - cookie
   - api_key
-service_name: e2e-demo-service
+service_name: test-svc
 supabase:
   db_url: ''
   key: ''

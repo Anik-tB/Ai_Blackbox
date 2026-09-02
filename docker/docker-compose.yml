@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: aidbg-backend
+    ports:
+      - "8765:8765"
+    environment:
+      - AIDBG_HOST=0.0.0.0
+      - AIDBG_PORT=8765
+      - DATABASE_URL=sqlite+aiosqlite:////data/aidbg.db
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL:-}
+      - AI_PROVIDER=${AI_PROVIDER:-fallback}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - aidbg-data:/data
+      - ..:/workspace
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: aidbg-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8765
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  aidbg-data:
