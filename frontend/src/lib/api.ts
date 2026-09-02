@@ -1,23 +1,19 @@
 import { Incident } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8765";
-
 export async function getIncidents(severity?: string): Promise<Incident[]> {
-  const url = new URL(`${API_BASE}/api/v1/incidents`);
-  if (severity) url.searchParams.set("severity", severity);
+  const query = severity ? `?severity=${encodeURIComponent(severity)}` : "";
   try {
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(`/api/v1/incidents${query}`, { cache: "no-store" });
     if (!res.ok) return [];
     return await res.json();
   } catch {
-    // Graceful fallback when backend is offline
     return [];
   }
 }
 
 export async function getIncident(id: string): Promise<Incident | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/incidents/${id}`, { cache: "no-store" });
+    const res = await fetch(`/api/v1/incidents/${id}`, { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -27,7 +23,7 @@ export async function getIncident(id: string): Promise<Incident | null> {
 
 export async function createFixBranch(id: string): Promise<{ status: string; branch?: string; detail?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/incidents/${id}/branch`, {
+    const res = await fetch(`/api/v1/incidents/${id}/branch`, {
       method: "POST",
     });
     return await res.json();
@@ -38,7 +34,7 @@ export async function createFixBranch(id: string): Promise<{ status: string; bra
 
 export async function getHealth(): Promise<{ status: string; database_type?: string; database?: string; ai_provider?: string } | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/health`, { cache: "no-store" });
+    const res = await fetch(`/api/v1/health`, { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
   } catch {
