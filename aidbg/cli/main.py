@@ -96,9 +96,15 @@ def status():
         console.print(f"  Start backend server with: [bold yellow]python -m aidbg.backend.main[/bold yellow]")
 
 
-@app.command()
-def run(cmd: List[str] = typer.Argument(..., help="The command to execute (e.g. uvicorn app:app)")):
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
+def run(
+    ctx: typer.Context,
+    command: str = typer.Argument(..., help="The executable to run (e.g. python3, uvicorn)"),
+):
     """Run an application with AIBD automatic error capture enabled."""
+    cmd = [command] + ctx.args
     backend_url = get_backend_url()
     cfg = load_config()
     env = os.environ.copy()
