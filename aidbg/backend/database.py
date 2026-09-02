@@ -102,8 +102,17 @@ class Event(Base):
 
 
 # Database engine and session factory
+effective_db_url = settings.get_effective_db_url()
+connect_args = {}
+if "asyncpg" in effective_db_url:
+    connect_args = {
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+    }
+
 engine = create_async_engine(
-    settings.get_effective_db_url(),
+    effective_db_url,
+    connect_args=connect_args,
     echo=False,
     future=True,
     pool_pre_ping=True

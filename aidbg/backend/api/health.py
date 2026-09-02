@@ -25,10 +25,13 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
     except Exception as e:
         db_status = f"unhealthy: {str(e)}"
 
+    effective_url = settings.get_effective_db_url()
+    is_postgres = "postgresql" in effective_url
+
     return {
         "status": "ok",
         "database": db_status,
-        "database_type": "Supabase (PostgreSQL)" if settings.supabase_db_url else "SQLite (local)",
+        "database_type": "Supabase (PostgreSQL)" if is_postgres else "SQLite (local)",
         "ai_provider": settings.ai_provider,
         "python_version": platform.python_version(),
     }
@@ -43,12 +46,15 @@ async def doctor_check(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
     except Exception:
         db_ok = False
 
+    effective_url = settings.get_effective_db_url()
+    is_postgres = "postgresql" in effective_url
+
     return {
         "checks": [
             {"name": "Python Environment", "status": "pass", "details": platform.python_version()},
             {"name": "Backend Service", "status": "pass", "details": f"Running on {settings.host}:{settings.port}"},
             {"name": "Database Connection", "status": "pass" if db_ok else "fail",
-             "details": "Supabase" if settings.supabase_db_url else "Local SQLite"},
+             "details": "Supabase (PostgreSQL)" if is_postgres else "Local SQLite"},
             {"name": "AI Reasoning Engine", "status": "pass", "details": settings.ai_provider},
             {"name": "Secret Redaction Rules", "status": "pass", "details": "Active (Tokens, Passwords, Keys)"}
         ]
