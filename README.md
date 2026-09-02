@@ -24,39 +24,39 @@
 
 ---
 
-## Quickstart (Under 5 Minutes)
+## Quickstart (Under 2 Minutes)
 
 ### 1. Installation
 ```bash
 pip install aidbg
+# Or in editable development mode:
+pip install -e .
 ```
-*(Or for local development: `pip install -e .`)*
 
-### 2. Initialize Project
+### 2. Launch Platform (Single Command)
 ```bash
-aidbg init --service "my-service"
+aidbg up
 ```
-This generates `.aidbg/config.yaml` with your service name, Supabase settings, and secret redaction rules.
+This starts both the **AIBD Backend Server** (`http://127.0.0.1:8765`) and the **Web Dashboard** (`http://localhost:3000`) in the background and connects to your Supabase PostgreSQL database.
 
 ### 3. Run Your Application with AIBD Observation
 ```bash
-aidbg run uvicorn app:app --port 8000
+aidbg run python3 -m uvicorn examples.buggy_app.app:app --port 8000
 ```
-Or for standard scripts:
+Or for any Python script:
 ```bash
 aidbg run python main.py
 ```
 
-### 4. Inspect Incidents via CLI
+### 4. Inspect Incidents via CLI or Dashboard
+* **Web Dashboard:** Open **`http://localhost:3000`**
+* **CLI:**
 ```bash
-aidbg incidents
-```
-Output:
-```text
-ID       ERROR                    COUNT    SEVERITY    SERVICE
-─────────────────────────────────────────────────────────────────────────────
-A7F82C   DatabaseTimeout          1231     CRITICAL    billing-service
-B81DA2   NullPointerException      231     HIGH        auth-service
+aidbg incidents                  # List all deduplicated incidents
+aidbg explain <INCIDENT-ID>      # View root cause analysis & causal graph
+aidbg fix <INCIDENT-ID> --branch # View patch diff and create git branch
+aidbg export <INCIDENT-ID>       # Export postmortem to Markdown/JSON
+aidbg down                       # Stop backend and dashboard cleanly
 ```
 
 ### 5. Explain Root Cause

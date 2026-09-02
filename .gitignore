@@ -27,6 +27,9 @@ aidbg.db
 .coverage
 htmlcov/
 *.log
+.aidbg/*.pid
+.aidbg/logs/
+incident_*_report.md
 
 # Node & Next.js
 frontend/node_modules/

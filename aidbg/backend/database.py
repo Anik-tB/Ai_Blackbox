@@ -4,12 +4,16 @@ Fully compatible with Supabase PostgreSQL (via asyncpg) and SQLite (via aiosqlit
 """
 
 from __future__ import annotations
+import asyncio
 import json
+import os
+import sys
 import time
 from typing import Any, AsyncGenerator, Dict, List, Optional
 from sqlalchemy import Column, Float, Integer, String, Text, JSON, BigInteger, ForeignKey, desc
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.pool import NullPool
 
 from aidbg.backend.config import settings
 
@@ -104,18 +108,28 @@ class Event(Base):
 # Database engine and session factory
 effective_db_url = settings.get_effective_db_url()
 connect_args = {}
-if "asyncpg" in effective_db_url:
+pool_kwargs = {"pool_pre_ping": True}
+
+if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
+    pool_kwargs = {"poolclass": NullPool}
+elif "asyncpg" in effective_db_url:
     connect_args = {
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
     }
+    pool_kwargs.update({
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_recycle": 300,
+        "pool_timeout": 30,
+    })
 
 engine = create_async_engine(
     effective_db_url,
     connect_args=connect_args,
     echo=False,
     future=True,
-    pool_pre_ping=True
+    **pool_kwargs
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -128,9 +142,16 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Create tables if not existing (useful for SQLite or initial Postgres setup)."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Create tables if not existing with retry logic."""
+    for attempt in range(1, 4):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            return
+        except Exception as e:
+            if attempt == 3:
+                raise
+            await asyncio.sleep(1.0 * attempt)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

@@ -7,13 +7,11 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  Download,
   GitBranch,
-  GitCommit,
   Info,
-  Layers,
   Lightbulb,
   ShieldCheck,
-  Terminal,
   Zap,
 } from "lucide-react";
 import { createFixBranch, getIncident } from "../../../lib/api";
@@ -52,6 +50,48 @@ export default function IncidentDetailPage() {
       setBranchStatus(`Branch error: ${res.detail || "Unknown"}`);
     }
     setCreatingBranch(false);
+  };
+
+  const handleExportMarkdown = () => {
+    if (!incident) return;
+    const confidencePct = incident.confidence
+      ? Math.round(incident.confidence <= 1 ? incident.confidence * 100 : incident.confidence)
+      : 85;
+
+    const content = `# Incident Postmortem: ${incident.id} (${incident.error_type})
+
+- **Severity:** ${incident.severity}
+- **Service:** ${incident.service}
+- **Culprit:** \`${incident.culprit}\`
+- **Occurrences:** ${incident.occurrences}
+- **Confidence:** ${confidencePct}%
+
+## Probable Root Cause
+${incident.root_cause || "N/A"}
+
+## Confirmed Evidence
+${(incident.evidence || []).map((e) => `- ${e}`).join("\n")}
+
+## Recommended Fix Action
+${incident.suggested_fix || "N/A"}
+
+## Proposed Unified Patch Diff
+\`\`\`diff
+${incident.proposed_patch || "# No diff generated"}
+\`\`\`
+
+## Generated Pytest Regression Test
+\`\`\`python
+${incident.generated_test || "# No test generated"}
+\`\`\`
+`;
+    const blob = new Blob([content], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `incident_${incident.id}_report.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -112,6 +152,14 @@ export default function IncidentDetailPage() {
           </div>
 
           <div className="flex items-center space-x-3">
+            <button
+              onClick={handleExportMarkdown}
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
+              title="Export Markdown Report"
+            >
+              <Download className="w-4 h-4 text-emerald-600" />
+              <span>Export Report</span>
+            </button>
             <button
               onClick={handleCreateBranch}
               disabled={creatingBranch}

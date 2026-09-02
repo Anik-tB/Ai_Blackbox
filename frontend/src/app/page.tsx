@@ -8,8 +8,10 @@ import {
   AlertTriangle,
   ArrowRight,
   Database,
+  Download,
   Layers,
   PowerOff,
+  Radio,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -24,6 +26,7 @@ export default function OverviewPage() {
   const [severityFilter, setSeverityFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [health, setHealth] = useState<any>(null);
+  const [liveConnected, setLiveConnected] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -38,8 +41,31 @@ export default function OverviewPage() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(loadData, 8000);
+
+    // WebSocket real-time live connection
+    let ws: WebSocket | null = null;
+    try {
+      ws = new WebSocket("ws://127.0.0.1:8765/ws");
+      ws.onopen = () => setLiveConnected(true);
+      ws.onclose = () => setLiveConnected(false);
+      ws.onerror = () => setLiveConnected(false);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "INCIDENT_UPDATED") {
+            loadData();
+          }
+        } catch {}
+      };
+    } catch {
+      setLiveConnected(false);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (ws) ws.close();
+    };
   }, [severityFilter]);
 
   const isBackendOffline = !health;
@@ -54,6 +80,16 @@ export default function OverviewPage() {
       (inc.service || "").toLowerCase().includes(q)
     );
   });
+
+  const exportAllJSON = () => {
+    const blob = new Blob([JSON.stringify(incidents, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `aibd_incidents_export_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const criticalCount = incidents.filter((i) => i.severity === "CRITICAL").length;
   const highCount = incidents.filter((i) => i.severity === "HIGH").length;
@@ -84,6 +120,14 @@ export default function OverviewPage() {
           </div>
 
           <div className="flex items-center space-x-3">
+            {/* Live WebSocket Indicator */}
+            {liveConnected && (
+              <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 bg-emerald-50 rounded-full border border-emerald-200 text-[11px] font-semibold text-emerald-800">
+                <Radio className="w-3 h-3 text-emerald-600 animate-pulse" />
+                <span>Live Realtime</span>
+              </div>
+            )}
+
             {isBackendOffline ? (
               <div className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 rounded-full border border-amber-200 text-xs font-semibold text-amber-800">
                 <PowerOff className="w-3.5 h-3.5 text-amber-600" />
@@ -92,10 +136,20 @@ export default function OverviewPage() {
             ) : (
               <div className="flex items-center space-x-2 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-200 text-xs font-semibold text-emerald-800">
                 <Database className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{health?.database_type || "Supabase / SQLite"}</span>
+                <span>{health?.database_type || "Supabase (PostgreSQL)"}</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
             )}
+
+            <button
+              onClick={exportAllJSON}
+              className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium shadow-xs transition cursor-pointer"
+              title="Export All Incidents to JSON"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Export</span>
+            </button>
+
             <button
               onClick={loadData}
               className="p-2 text-slate-600 hover:text-emerald-700 bg-white hover:bg-emerald-50 border border-slate-200 rounded-xl shadow-xs transition cursor-pointer"
@@ -118,7 +172,7 @@ export default function OverviewPage() {
               <div>
                 <p className="text-xs font-bold text-amber-900">AIBD Backend Server is not running</p>
                 <p className="text-[11px] text-amber-700">
-                  Start it in another terminal with: <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono font-bold">python3 -m aidbg.backend.main</code>
+                  Start both Backend & Dashboard with: <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono font-bold">aidbg up</code>
                 </p>
               </div>
             </div>
@@ -245,7 +299,7 @@ export default function OverviewPage() {
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-slate-400">
                       {isBackendOffline
-                        ? "Backend is offline. Start python3 -m aidbg.backend.main to view live telemetry."
+                        ? "Backend is offline. Run 'aidbg up' to launch the background platform."
                         : "No incidents matching your filter."}
                     </td>
                   </tr>
