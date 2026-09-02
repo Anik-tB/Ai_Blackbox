@@ -19,17 +19,14 @@ def get_supabase_client() -> Optional[Any]:
     if _supabase_client is not None:
         return _supabase_client
 
-    if not settings.supabase_url or not (settings.supabase_key or settings.supabase_service_role_key):
+    s_url, s_key = settings.get_supabase_api_credentials()
+    if not s_url or not s_key:
         return None
 
     try:
-        from supabase import create_client, Client
-        key = settings.supabase_service_role_key or settings.supabase_key
-        _supabase_client = create_client(settings.supabase_url, key)
+        from supabase import create_client
+        _supabase_client = create_client(s_url, s_key)
         return _supabase_client
-    except ImportError:
-        logger.debug("supabase-py library not installed, falling back to direct SQLAlchemy.")
-        return None
     except Exception as e:
         logger.warning(f"Failed to initialize Supabase client: {e}")
         return None
@@ -42,7 +39,6 @@ async def broadcast_incident_event(incident_id: str, event_name: str, payload: D
         return
 
     try:
-        # Broadcast on channel 'incidents'
         channel = client.channel(f"incident:{incident_id}")
         channel.send_broadcast(event_name, payload)
     except Exception as e:
