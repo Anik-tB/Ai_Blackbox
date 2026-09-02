@@ -1,0 +1,17 @@
+ai:
+  provider: fallback
+backend_url: http://127.0.0.1:8765
+environment: development
+redaction:
+  enabled: true
+  patterns:
+  - password
+  - token
+  - secret
+  - cookie
+  - api_key
+service_name: e2e-demo-service
+supabase:
+  db_url: ''
+  key: ''
+  url: ''

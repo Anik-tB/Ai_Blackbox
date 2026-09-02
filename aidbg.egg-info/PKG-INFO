@@ -1,0 +1,26 @@
+Metadata-Version: 2.4
+Name: aidbg
+Version: 0.1.0
+Summary: AI Black Box Debugger - Collect evidence, reconstruct execution, explain root causes, suggest fixes
+Author: AIBD Team
+License: MIT
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.110.0
+Requires-Dist: uvicorn[standard]>=0.28.0
+Requires-Dist: pydantic>=2.6.0
+Requires-Dist: pydantic-settings>=2.2.0
+Requires-Dist: sqlalchemy[asyncio]>=2.0.25
+Requires-Dist: aiosqlite>=0.20.0
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: typer>=0.9.0
+Requires-Dist: rich>=13.7.0
+Requires-Dist: networkx>=3.2.0
+Requires-Dist: opentelemetry-api>=1.23.0
+Requires-Dist: opentelemetry-sdk>=1.23.0
+Requires-Dist: pyyaml>=6.0.1
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23.0; extra == "dev"
+Requires-Dist: asyncpg>=0.29.0; extra == "dev"
+Requires-Dist: supabase>=2.3.0; extra == "dev"
