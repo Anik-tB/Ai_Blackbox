@@ -40,3 +40,7 @@ aidbg = "aidbg.cli.main:app"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["aidbg*"]
+
+[tool.setuptools.package-data]
+"aidbg.agent" = ["*.cjs", "*.js"]
+

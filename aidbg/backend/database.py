@@ -110,9 +110,7 @@ effective_db_url = settings.get_effective_db_url()
 connect_args = {}
 pool_kwargs = {"pool_pre_ping": True}
 
-if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
-    pool_kwargs = {"poolclass": NullPool}
-elif "asyncpg" in effective_db_url:
+if "asyncpg" in effective_db_url:
     connect_args = {
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
@@ -123,6 +121,9 @@ elif "asyncpg" in effective_db_url:
         "pool_recycle": 300,
         "pool_timeout": 30,
     })
+
+if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
+    pool_kwargs = {"poolclass": NullPool}
 
 engine = create_async_engine(
     effective_db_url,

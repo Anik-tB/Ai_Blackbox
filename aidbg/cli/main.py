@@ -221,24 +221,104 @@ def status():
 )
 def run(
     ctx: typer.Context,
-    command: str = typer.Argument(..., help="The executable to run (e.g. python3, uvicorn)"),
+    command: str = typer.Argument(..., help="The executable to run (e.g. node, python, go, cargo, npm)"),
 ):
-    """Run an application with AIBD automatic error capture enabled."""
+    """Run any application (Node.js, Python, Go, Rust, Java, etc.) with AIBD automatic error capture enabled."""
     cmd = [command] + ctx.args
     backend_url = get_backend_url()
     cfg = load_config()
+    service_name = cfg.get("service_name", "app")
+
     env = os.environ.copy()
     env["AIDBG_ENDPOINT"] = f"{backend_url}/api/v1/incidents/ingest"
-    env["AIDBG_SERVICE"] = cfg.get("service_name", "app")
-    env["PYTHONPATH"] = f"{os.getcwd()}:{env.get('PYTHONPATH', '')}"
+    env["AIDBG_SERVICE"] = service_name
 
-    console.print(f"[dim]aidbg supervisor active -> observing: {' '.join(cmd)}[/dim]")
-    try:
-        proc = subprocess.run(cmd, env=env)
-        sys.exit(proc.returncode)
-    except KeyboardInterrupt:
-        console.print("\n[dim]Process terminated by user[/dim]")
-        sys.exit(0)
+    binary = Path(command).name.lower()
+    is_node = binary in ["node", "nodejs", "npm", "npx", "yarn", "pnpm", "bun", "deno"]
+    is_python = binary in ["python", "python3", "uvicorn", "gunicorn", "pytest", "flask", "django-admin"]
+
+    # 1. Node.js / JavaScript / TypeScript runtime
+    if is_node:
+        import aidbg.agent
+        node_agent_path = Path(aidbg.agent.__file__).parent / "node_agent.cjs"
+        if node_agent_path.exists():
+            existing_node_opts = env.get("NODE_OPTIONS", "")
+            env["NODE_OPTIONS"] = f"--require {node_agent_path.resolve()} {existing_node_opts}".strip()
+            console.print(f"[bold green]✓[/bold green] [dim]aidbg Node.js agent attached -> observing: {' '.join(cmd)}[/dim]")
+        else:
+            console.print(f"[dim]aidbg supervisor active -> observing: {' '.join(cmd)}[/dim]")
+
+        try:
+            proc = subprocess.run(cmd, env=env)
+            sys.exit(proc.returncode)
+        except KeyboardInterrupt:
+            console.print("\n[dim]Process terminated by user[/dim]")
+            sys.exit(0)
+
+    # 2. Python runtime
+    elif is_python:
+        env["PYTHONPATH"] = f"{os.getcwd()}:{env.get('PYTHONPATH', '')}"
+        console.print(f"[bold green]✓[/bold green] [dim]aidbg Python agent attached -> observing: {' '.join(cmd)}[/dim]")
+        try:
+            proc = subprocess.run(cmd, env=env)
+            sys.exit(proc.returncode)
+        except KeyboardInterrupt:
+            console.print("\n[dim]Process terminated by user[/dim]")
+            sys.exit(0)
+
+    # 3. Universal Process Supervisor for ALL other languages (Go, Rust, C++, Java, Ruby, PHP)
+    else:
+        console.print(f"[bold green]✓[/bold green] [dim]aidbg Universal Process Supervisor active ({binary}) -> observing: {' '.join(cmd)}[/dim]")
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                env=env,
+                stderr=subprocess.PIPE,
+                stdout=None,
+                text=True
+            )
+            _, stderr_output = proc.communicate()
+            if stderr_output:
+                sys.stderr.write(stderr_output)
+
+            if proc.returncode != 0 and stderr_output and stderr_output.strip():
+                lines = [l.strip() for l in stderr_output.strip().splitlines() if l.strip()]
+                error_type = f"{binary.capitalize()}Crash"
+                error_message = lines[-1] if lines else f"Process exited with code {proc.returncode}"
+
+                for line in lines:
+                    if any(w in line.lower() for w in ["panic:", "error:", "exception:", "fatal:", "segmentation fault"]):
+                        error_message = line
+                        if ":" in line:
+                            error_type = line.split(":", 1)[0].strip()
+                        break
+
+                try:
+                    with httpx.Client(timeout=3.0) as client:
+                        client.post(
+                            f"{backend_url}/api/v1/incidents/ingest",
+                            json={
+                                "error_type": error_type,
+                                "error_message": error_message,
+                                "frames": [{"filename": command, "lineno": 1, "function": "main", "code_line": stderr_output[:500]}],
+                                "culprit": f"{command}:1",
+                                "tags": {
+                                    "service": service_name,
+                                    "language": binary,
+                                    "exit_code": proc.returncode
+                                },
+                                "breadcrumbs": [{"timestamp": time.time(), "category": "process", "level": "error", "message": f"Exited with code {proc.returncode}"}],
+                                "timestamp": time.time()
+                            }
+                        )
+                        console.print(f"\n[bold yellow]⚡ aidbg captured crash ({error_type}) -> logged to AIBD Dashboard[/bold yellow]")
+                except Exception:
+                    pass
+
+            sys.exit(proc.returncode)
+        except KeyboardInterrupt:
+            console.print("\n[dim]Process terminated by user[/dim]")
+            sys.exit(0)
 
 
 @app.command()
